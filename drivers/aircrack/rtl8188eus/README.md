@@ -1,6 +1,6 @@
-## rtl8188eus v5.7.6.1
+## rtl8188eus v5.3.9
 
-# Realtek rtl8188eus &amp; rtl8188eu &amp; rtl8188etv WiFi driver
+# Realtek rtl8188eus &amp; rtl8188eu &amp; rtl8188etv WiFi drivers
 
 [![Monitor mode](https://img.shields.io/badge/monitor%20mode-supported-brightgreen.svg)](#)
 [![Frame Injection](https://img.shields.io/badge/frame%20injection-supported-brightgreen.svg)](#)
@@ -14,45 +14,36 @@
 
 
 # Supports
-* Android 9
-* WPA3-SAE
-* P2P Mode
-* WiFi Direct
+* Android 7
 * MESH Support
 * Monitor mode
 * Frame injection
-* Supported up to kernel v5.4+
+* Up to kernel v5.8+
 ... And a bunch of various wifi chipsets
 
-# Howto download/build/install
-```sh
-1. Clone the repo with "git clone https://github.com/aircrack-ng/rtl8188eus -b v5.7.6.1"
-2. Enter the folder with "cd rtl8188eus"
-2. Then run "make && make install"
-3. And reboot in order to blacklist the module and load this module instead.
-```
+# Howto build/install
+1. You will need to blacklist another driver in order to use this one.
+2. "echo "blacklist r8188eu" > "/etc/modprobe.d/realtek.conf"
+3. "make && make install"<br>
+4. Reboot in order to blacklist and load the new driver/module.
 
 # MONITOR MODE howto
 Use these steps to enter monitor mode.
-```sh
-$ airmon-ng check-kill
-$ ip link set <interface> down
-$ iw dev <interface> set type monitor
 ```
-To set txpower to a higher level.
-```sh
-$ iw <interface> set txpower fixed 3000
+$ sudo airmon-ng check-kill
+$ sudo ip link set <interface> down
+$ sudo iw dev <interface> set type monitor
 ```
-
 Frame injection test may be performed with
-```sh
+(after kernel v5.2 scanning is slow, run a scan or simply an airodump-ng first!)
+```
 $ aireplay -9 <interface>
 ```
 
 # NetworkManager configuration
 Add these lines below to "NetworkManager.conf" and ADD YOUR ADAPTER MAC below [keyfile]
 This will make the Network-Manager ignore the device, and therefor don't cause problems.
-```sh
+```
 [device]
 wifi.scan-rand-mac-address=no
 
@@ -69,12 +60,9 @@ plugins=keyfile
 unmanaged-devices=mac:A7:A7:A7:A7:A7
 ```
 
-# TODO
-* Turn down log level / DEBUG
-  (we want it now for some months just to see)
-
-* Unlock all channels and check the DFS setting
-
-* Implement txpower control
-
-* Remove Windows (NDIS) code
+# Credits
+Realtek       - https://www.realtek.com<br>
+Alfa Networks - https://www.alfa.com.tw<br>
+aircrack-ng.  - https://www.aircrack-ng.org<br>
+<br>
+And all those who may be using or contributing to it of anykind. Thanks!<br>

@@ -42,9 +42,7 @@ u8 rtw_validate_bssid(u8 *bssid)
 
 u8 rtw_validate_ssid(NDIS_802_11_SSID *ssid)
 {
-#ifdef CONFIG_VALIDATE_SSID
 	u8	 i;
-#endif
 	u8	ret = _TRUE;
 
 
@@ -108,17 +106,10 @@ u8 rtw_do_join(_adapter *padapter)
 		if (pmlmepriv->LinkDetectInfo.bBusyTraffic == _FALSE
 		    || rtw_to_roam(padapter) > 0
 		   ) {
-			u8 ssc_chk = rtw_sitesurvey_condition_check(padapter, _FALSE);
-
-			if ((ssc_chk == SS_ALLOW) || (ssc_chk == SS_DENY_BUSY_TRAFFIC) ){
-				/* submit site_survey_cmd */
-				ret = rtw_sitesurvey_cmd(padapter, &parm);
-				if (_SUCCESS != ret)
-					pmlmepriv->to_join = _FALSE;
-			} else {
-				/*if (ssc_chk == SS_DENY_BUDDY_UNDER_SURVEY)*/
+			/* submit site_survey_cmd */
+			ret = rtw_sitesurvey_cmd(padapter, &parm);
+			if (_SUCCESS != ret) {
 				pmlmepriv->to_join = _FALSE;
-				ret = _FAIL;
 			}
 		} else {
 			pmlmepriv->to_join = _FALSE;
@@ -164,22 +155,26 @@ u8 rtw_do_join(_adapter *padapter)
 				/* can't associate ; reset under-linking			 */
 				_clr_fwstate_(pmlmepriv, _FW_UNDER_LINKING);
 
+#if 0
+				if ((check_fwstate(pmlmepriv, WIFI_STATION_STATE) == _TRUE)) {
+					if (_rtw_memcmp(pmlmepriv->cur_network.network.Ssid.Ssid, pmlmepriv->assoc_ssid.Ssid, pmlmepriv->assoc_ssid.SsidLength)) {
+						/* for funk to do roaming */
+						/* funk will reconnect, but funk will not sitesurvey before reconnect */
+						if (pmlmepriv->sitesurveyctrl.traffic_busy == _FALSE)
+							rtw_sitesurvey_cmd(padapter, &parm);
+					}
+
+				}
+#endif
+
 				/* when set_ssid/set_bssid for rtw_do_join(), but there are no desired bss in scanning queue */
 				/* we try to issue sitesurvey firstly			 */
 				if (pmlmepriv->LinkDetectInfo.bBusyTraffic == _FALSE
 				    || rtw_to_roam(padapter) > 0
 				   ) {
-					u8 ssc_chk = rtw_sitesurvey_condition_check(padapter, _FALSE);
-
-					if ((ssc_chk == SS_ALLOW) || (ssc_chk == SS_DENY_BUSY_TRAFFIC)){
-						/* RTW_INFO(("rtw_do_join() when   no desired bss in scanning queue\n"); */
-						ret = rtw_sitesurvey_cmd(padapter, &parm);
-						if (_SUCCESS != ret)
-							pmlmepriv->to_join = _FALSE;
-					} else {
-						/*if (ssc_chk == SS_DENY_BUDDY_UNDER_SURVEY) {
-						} else {*/
-						ret = _FAIL;
+					/* RTW_INFO("rtw_do_join() when   no desired bss in scanning queue\n"); */
+					ret = rtw_sitesurvey_cmd(padapter, &parm);
+					if (_SUCCESS != ret) {
 						pmlmepriv->to_join = _FALSE;
 					}
 				} else {
@@ -196,6 +191,84 @@ exit:
 
 	return ret;
 }
+
+#ifdef PLATFORM_WINDOWS
+u8 rtw_pnp_set_power_wakeup(_adapter *padapter)
+{
+	u8 res = _SUCCESS;
+
+
+
+	res = rtw_setstandby_cmd(padapter, 0);
+
+
+
+	return res;
+}
+
+u8 rtw_pnp_set_power_sleep(_adapter *padapter)
+{
+	u8 res = _SUCCESS;
+
+
+	/* DbgPrint("+rtw_pnp_set_power_sleep\n"); */
+
+	res = rtw_setstandby_cmd(padapter, 1);
+
+
+
+	return res;
+}
+
+u8 rtw_set_802_11_reload_defaults(_adapter *padapter, NDIS_802_11_RELOAD_DEFAULTS reloadDefaults)
+{
+
+
+
+	/* SecClearAllKeys(Adapter); */
+	/* 8711 CAM was not for En/Decrypt only */
+	/* so, we can't clear all keys. */
+	/* should we disable WPAcfg (ox0088) bit 1-2, instead of clear all CAM */
+
+	/* TO DO... */
+
+
+	return _TRUE;
+}
+
+u8 set_802_11_test(_adapter *padapter, NDIS_802_11_TEST *test)
+{
+	u8 ret = _TRUE;
+
+
+	switch (test->Type) {
+	case 1:
+		NdisMIndicateStatus(padapter->hndis_adapter, NDIS_STATUS_MEDIA_SPECIFIC_INDICATION, (PVOID)&test->AuthenticationEvent, test->Length - 8);
+		NdisMIndicateStatusComplete(padapter->hndis_adapter);
+		break;
+
+	case 2:
+		NdisMIndicateStatus(padapter->hndis_adapter, NDIS_STATUS_MEDIA_SPECIFIC_INDICATION, (PVOID)&test->RssiTrigger, sizeof(NDIS_802_11_RSSI));
+		NdisMIndicateStatusComplete(padapter->hndis_adapter);
+		break;
+
+	default:
+		ret = _FALSE;
+		break;
+	}
+
+
+	return ret;
+}
+
+u8	rtw_set_802_11_pmkid(_adapter	*padapter, NDIS_802_11_PMKID *pmkid)
+{
+	u8	ret = _SUCCESS;
+
+	return ret;
+}
+
+#endif
 
 u8 rtw_set_802_11_bssid(_adapter *padapter, u8 *bssid)
 {
@@ -234,7 +307,7 @@ u8 rtw_set_802_11_bssid(_adapter *padapter, u8 *bssid)
 			if (check_fwstate(pmlmepriv, _FW_LINKED) == _TRUE)
 				rtw_indicate_disconnect(padapter, 0, _FALSE);
 
-			rtw_free_assoc_resources_cmd(padapter, _TRUE, 0);
+			rtw_free_assoc_resources_cmd(padapter, _TRUE);
 
 			if ((check_fwstate(pmlmepriv, WIFI_ADHOC_MASTER_STATE) == _TRUE)) {
 				_clr_fwstate_(pmlmepriv, WIFI_ADHOC_MASTER_STATE);
@@ -271,6 +344,7 @@ u8 rtw_set_802_11_ssid(_adapter *padapter, NDIS_802_11_SSID *ssid)
 {
 	_irqL irqL;
 	u8 status = _SUCCESS;
+	u32 cur_time = 0;
 
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
 	struct wlan_network *pnetwork = &pmlmepriv->cur_network;
@@ -305,7 +379,7 @@ u8 rtw_set_802_11_ssid(_adapter *padapter, NDIS_802_11_SSID *ssid)
 					if (check_fwstate(pmlmepriv, _FW_LINKED) == _TRUE)
 						rtw_indicate_disconnect(padapter, 0, _FALSE);
 
-					rtw_free_assoc_resources_cmd(padapter, _TRUE, 0);
+					rtw_free_assoc_resources_cmd(padapter, _TRUE);
 
 					if (check_fwstate(pmlmepriv, WIFI_ADHOC_MASTER_STATE) == _TRUE) {
 						_clr_fwstate_(pmlmepriv, WIFI_ADHOC_MASTER_STATE);
@@ -317,7 +391,7 @@ u8 rtw_set_802_11_ssid(_adapter *padapter, NDIS_802_11_SSID *ssid)
 			}
 #ifdef CONFIG_LPS
 			else
-				rtw_lps_ctrl_wk_cmd(padapter, LPS_CTRL_JOINBSS, 0);
+				rtw_lps_ctrl_wk_cmd(padapter, LPS_CTRL_JOINBSS, 1);
 #endif
 		} else {
 
@@ -326,7 +400,7 @@ u8 rtw_set_802_11_ssid(_adapter *padapter, NDIS_802_11_SSID *ssid)
 			if (check_fwstate(pmlmepriv, _FW_LINKED) == _TRUE)
 				rtw_indicate_disconnect(padapter, 0, _FALSE);
 
-			rtw_free_assoc_resources_cmd(padapter, _TRUE, 0);
+			rtw_free_assoc_resources_cmd(padapter, _TRUE);
 
 			if (check_fwstate(pmlmepriv, WIFI_ADHOC_MASTER_STATE) == _TRUE) {
 				_clr_fwstate_(pmlmepriv, WIFI_ADHOC_MASTER_STATE);
@@ -368,6 +442,7 @@ u8 rtw_set_802_11_connect(_adapter *padapter, u8 *bssid, NDIS_802_11_SSID *ssid)
 {
 	_irqL irqL;
 	u8 status = _SUCCESS;
+	u32 cur_time = 0;
 	bool bssid_valid = _TRUE;
 	bool ssid_valid = _TRUE;
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
@@ -463,7 +538,7 @@ u8 rtw_set_802_11_infrastructure_mode(_adapter *padapter,
 
 		if ((check_fwstate(pmlmepriv, _FW_LINKED) == _TRUE) ||
 		    (check_fwstate(pmlmepriv, WIFI_ADHOC_MASTER_STATE) == _TRUE))
-			rtw_free_assoc_resources_cmd(padapter, _TRUE, 0);
+			rtw_free_assoc_resources_cmd(padapter, _TRUE);
 
 		if ((*pold_state == Ndis802_11Infrastructure) || (*pold_state == Ndis802_11IBSS)) {
 			if (check_fwstate(pmlmepriv, _FW_LINKED) == _TRUE) {
@@ -537,7 +612,7 @@ u8 rtw_set_802_11_disassociate(_adapter *padapter)
 		rtw_disassoc_cmd(padapter, 0, 0);
 		rtw_indicate_disconnect(padapter, 0, _FALSE);
 		/* modify for CONFIG_IEEE80211W, none 11w can use it */
-		rtw_free_assoc_resources_cmd(padapter, _TRUE, 0);
+		rtw_free_assoc_resources_cmd(padapter, _TRUE);
 		if (_FAIL == rtw_pwr_wakeup(padapter))
 			RTW_INFO("%s(): rtw_pwr_wakeup fail !!!\n", __FUNCTION__);
 	}
@@ -693,13 +768,10 @@ exit:
 */
 u16 rtw_get_cur_max_rate(_adapter *adapter)
 {
-	int j;
 	int	i = 0;
 	u16	rate = 0, max_rate = 0;
 	struct mlme_priv	*pmlmepriv = &adapter->mlmepriv;
 	WLAN_BSSID_EX	*pcur_bss = &pmlmepriv->cur_network.network;
-	int	sta_bssrate_len = 0;
-	unsigned char	sta_bssrate[NumRates];
 	struct sta_info *psta = NULL;
 	u8	short_GI = 0;
 #ifdef CONFIG_80211N_HT
@@ -739,38 +811,16 @@ u16 rtw_get_cur_max_rate(_adapter *adapter)
 	else
 #endif /* CONFIG_80211N_HT */
 	{
-		/*station mode show :station && ap support rate; softap :show ap support rate*/	
-		if (check_fwstate(pmlmepriv, WIFI_STATION_STATE) == _TRUE)
-			get_rate_set(adapter, sta_bssrate, &sta_bssrate_len);/*get sta rate and length*/
-
-
 		while ((pcur_bss->SupportedRates[i] != 0) && (pcur_bss->SupportedRates[i] != 0xFF)) {
-			rate = pcur_bss->SupportedRates[i] & 0x7F;/*AP support rates*/
-			/*RTW_INFO("%s rate=%02X \n", __func__, rate);*/
-
-			/*check STA  support rate or not */
-			if (check_fwstate(pmlmepriv, WIFI_STATION_STATE) == _TRUE) {
-				for (j = 0; j < sta_bssrate_len; j++) {
-					/* Avoid the proprietary data rate (22Mbps) of Handlink WSG-4000 AP */
-					if ((rate | IEEE80211_BASIC_RATE_MASK)
-					    == (sta_bssrate[j] | IEEE80211_BASIC_RATE_MASK)) {
-						if (rate > max_rate) {
-							max_rate = rate;
-						}
-						break;
-					}
-				}
-			} else {
-			
-				if (rate > max_rate)
-					max_rate = rate;
-
-			}
+			rate = pcur_bss->SupportedRates[i] & 0x7F;
+			if (rate > max_rate)
+				max_rate = rate;
 			i++;
 		}
 
 		max_rate = max_rate * 10 / 2;
 	}
+
 	return max_rate;
 }
 
@@ -800,6 +850,9 @@ int rtw_set_scan_mode(_adapter *adapter, RT_SCAN_TYPE scan_mode)
 */
 int rtw_set_channel_plan(_adapter *adapter, u8 channel_plan)
 {
+	struct registry_priv *pregistrypriv = &adapter->registrypriv;
+	struct mlme_priv *pmlmepriv = &adapter->mlmepriv;
+
 	/* handle by cmd_thread to sync with scan operation */
 	return rtw_set_chplan_cmd(adapter, RTW_CMDF_WAIT_ACK, channel_plan, 1);
 }
