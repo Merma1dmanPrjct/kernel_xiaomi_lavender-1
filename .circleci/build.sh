@@ -1,9 +1,14 @@
 #!/usr/bin/env bash
 echo "Cloning dependencies"
+
+#Using Predator's clang and gcc
 git clone --depth=1 https://github.com/sohamxda7/llvm-stable  clang
 git clone https://github.com/sohamxda7/llvm-stable -b gcc64 --depth=1 gcc
 git clone https://github.com/sohamxda7/llvm-stable -b gcc32  --depth=1 gcc32
-git clone --depth=1 https://github.com/sohamxda7/AnyKernel3 AnyKernel
+
+#Using custom anykernel
+git clone --depth=1 https://github.com/AldyHK/AnyKernel3 AnyKernel
+
 echo "Done"
 IMAGE=$(pwd)/out/arch/arm64/boot/Image.gz-dtb
 TANGGAL=$(date +"%F-%S")
@@ -13,11 +18,17 @@ PATH="${KERNEL_DIR}/clang/bin:${KERNEL_DIR}/gcc/bin:${KERNEL_DIR}/gcc32/bin:${PA
 export KBUILD_COMPILER_STRING="$(${KERNEL_DIR}/clang/bin/clang --version | head -n 1 | perl -pe 's/\(http.*?\)//gs' | sed -e 's/  */ /g')"
 export ARCH=arm64
 export KBUILD_BUILD_HOST=circleci
-export KBUILD_BUILD_USER="sohamsen"
-# sticker plox
+export KBUILD_BUILD_USER="AldyHK"
+# sticker plox (for success)
 function sticker() {
     curl -s -X POST "https://api.telegram.org/bot$token/sendSticker" \
-        -d sticker="CAACAgEAAxkBAAEnKnJfZOFzBnwC3cPwiirjZdgTMBMLRAACugEAAkVfBy-aN927wS5blhsE" \
+        -d sticker="CAACAgUAAxkBAAMWYQkN-PGEL6jVmcy-Wz8lUheCgYUAAsgDAALhLEhUssw0ioJnVhYgBA" \
+        -d chat_id=$chat_id
+}
+# more sticker plox (for not success)
+function stickersad() {
+    curl -s -X POST "https://api.telegram.org/bot$token/sendSticker" \
+        -d sticker="CAACAgUAAxkBAAMVYQkN9yGlEdHgecfbSWmlHFcPks8AAisDAAIhkUhURrJfmT1efr4gBA" \
         -d chat_id=$chat_id
 }
 # Send info plox channel
@@ -26,7 +37,7 @@ function sendinfo() {
         -d chat_id="$chat_id" \
         -d "disable_web_page_preview=true" \
         -d "parse_mode=html" \
-        -d text="<b>• Predator-Stormbreaker Kernel •</b>%0ABuild started on <code>Circle CI</code>%0AFor device <b>Xiaomi Redmi Note7/7S</b> (lavender)%0Abranch <code>$(git rev-parse --abbrev-ref HEAD)</code>(master)%0AUnder commit <code>$(git log --pretty=format:'"%h : %s"' -1)</code>%0AUsing compiler: <code>${KBUILD_COMPILER_STRING}</code>%0AStarted on <code>$(date)</code>%0A<b>Build Status:</b>#Stable"
+        -d text="<b>• NoCrypt Kernel •</b>%0ABuild dimulai pada <code>Circle CI</code>%0AUntuk <b>Xiaomi Redmi Note7/7S</b> (lavender)%0ABranch <code>$(git rev-parse --abbrev-ref HEAD)</code>(oldcam-hmp)%0ACommit Terakhir <code>$(git log --pretty=format:'"%h : %s"' -1)</code>%0AMenggunakan Compiler: <code>${KBUILD_COMPILER_STRING}</code>%0ADimulai Pada <code>$(date)</code>%0A%0A<i>Ditunggu kernelnya ya kak~</i>"
 }
 # Push kernel to channel
 function push() {
@@ -36,7 +47,8 @@ function push() {
         -F chat_id="$chat_id" \
         -F "disable_web_page_preview=true" \
         -F "parse_mode=html" \
-        -F caption="Build took $(($DIFF / 60)) minute(s) and $(($DIFF % 60)) second(s). | For <b>Xiaomi Redmi Note 7/7s (lavender)</b> | <b>$(${GCC}gcc --version | head -n 1 | perl -pe 's/\(http.*?\)//gs' | sed -e 's/  */ /g')</b>"
+        -F caption="Build memakan waktu $(($DIFF / 60)) menit dan $(($DIFF % 60)) detik. | For <b>Xiaomi Redmi Note 7/7s (lavender)</b> | <b>$(${GCC}gcc --version | head -n 1 | perl -pe 's/\(http.*?\)//gs' | sed -e 's/  */ /g')</b>"
+   sticker
 }
 # Fin Error
 function finerr() {
@@ -44,7 +56,8 @@ function finerr() {
         -d chat_id="$chat_id" \
         -d "disable_web_page_preview=true" \
         -d "parse_mode=markdown" \
-        -d text="Build throw an error(s)"
+        -d text="Buildnya error kak! T^T"
+    stickersad
     exit 1
 }
 # Compile plox
@@ -66,10 +79,9 @@ function compile() {
 # Zipping
 function zipping() {
     cd AnyKernel || exit 1
-    zip -r9 Predator-Stormbreaker-lavender-${TANGGAL}.zip *
+    zip -r9 NoCrypt-lavender-${TANGGAL}.zip *
     cd ..
 }
-sticker
 sendinfo
 compile
 zipping
